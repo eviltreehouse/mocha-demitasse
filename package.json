@@ -1,18 +1,21 @@
 {
   "name": "mocha-demitasse",
-  "version": "0.1.0",
-  "description": "Assertion library for doing data-driven unit tests",
+  "version": "0.1.1",
+  "description": "Assertion library for doing data-driven unit tests w/ some added flair",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "tc": "nyc --cache false npm t"
   },
   "author": "Corey Sharrah <corey@eviltreehouse.com>",
   "license": "MIT",
   "devDependencies": {
-    "mocha": "^6.1.4"
+    "mocha": "^6.1.4",
+    "nyc": "^14.1.1"
   },
   "dependencies": {
     "lodash": "^4.17.11",
+    "mustache": "^3.0.1",
     "simple-assert": "^1.0.0"
   }
 }
