@@ -68,8 +68,8 @@ describe("Baseline", () => {
 		it("Bad result = FAIL", () => {
 			const data = [
 				[2, 1, 1],
-				[3, 1, 1],
-				[5, 2, 3]
+				[3, 1, 1], //fail
+				[5, 3, 3]  //fail
 			];
 
 			var threw = null;
@@ -82,5 +82,48 @@ describe("Baseline", () => {
 			assert(threw !== null);
 			assert(threw.message === '[Test #1] Expected: 3, Actual: 2', threw.message);
 		});
+
+		it("Bad result = FAIL", () => {
+			const data = [
+				[2, 2, 1]
+			];
+
+			var threw = null;
+			try {
+				testAll(() => data, (v1, v2) => v1 + v2, { 'verbose': true });
+			} catch(e) {
+				threw = e;
+			}
+
+			assert(threw !== null);
+			assert(threw.message === '[Test #0][2, 1] Expected: 2, Actual: 3', threw.message);
+		});		
+
+		it("Bad result = PERSIST", () => {
+			const data = [
+				[2, 1, 1],
+				[3, 1, 1], //fail
+				[5, 3, 3]  //fail
+			];
+
+			var threw = null;
+			try {
+				testAll(() => data, (v1, v2) => v1 + v2, { 'persist': true });
+			} catch(e) {
+				threw = e;
+			}
+
+			assert(threw !== null);
+			assert(threw.message === 
+				'[Test #1] Expected: 3, Actual: 2\n[Test #2] Expected: 5, Actual: 6', threw.message);
+		});
+	});
+
+	context("Async", () => {
+		it("Handle sync SUCCESS result", () => {
+			const data = [ [2, 1, 1], [3, 1, 2], [5, 3, 2] ];
+
+			return testAll(() => data, (v1, v2) => v1 + v2, { async: true });
+		})
 	});
 });
