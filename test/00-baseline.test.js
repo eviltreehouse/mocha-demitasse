@@ -83,7 +83,7 @@ describe("Baseline", () => {
 			assert(threw.message === '[Test #1] Expected: 3, Actual: 2', threw.message);
 		});
 
-		it("Bad result = FAIL", () => {
+		it("Bad result = FAIL (verbose)", () => {
 			const data = [
 				[2, 2, 1]
 			];
@@ -117,13 +117,5 @@ describe("Baseline", () => {
 			assert(threw.message === 
 				'[Test #1] Expected: 3, Actual: 2\n[Test #2] Expected: 5, Actual: 6', threw.message);
 		});
-	});
-
-	context("Async", () => {
-		it("Handle sync SUCCESS result", () => {
-			const data = [ [2, 1, 1], [3, 1, 2], [5, 3, 2] ];
-
-			return testAll(() => data, (v1, v2) => v1 + v2, { async: true });
-		})
 	});
 });

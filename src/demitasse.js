@@ -46,15 +46,30 @@ function Demitasse(dataProviderFunction, testFunction, opts) {
 	for (let idx in data) {
 		if (! Array.isArray(data[idx])) throwErr(`Row ${idx} is non-array: ${data[idx]}`);
 		let row = _.cloneDeep(data[idx]);
-
-		testResults.push(doTest(testFunction, idx, row, opt));
+		let tres = doTest(testFunction, idx, row, opts);
+		testResults.push(tres);
+		if (tres !== null && !opts['persist'] && !opts['async']) break;
 	}
 
-	Promise.all(testResults).then((results) => {
+	var failures = [];
+	if (! opts['async']) {
+		for (let fail of testResults) if (fail) failures.push(fail);
+		if (failures.length > 0) throwErr(failures.join('\n'));
 
-	});
+		return;
+	}
 
-	if (failures.length > 0) throwErr(failures.join('\n'));
+	var cp = Promise.resolve(null);
+
+	/** @todo handle "non-persist" mode */
+	for (let p of testResults) {
+		cp = cp.then(testResults, (err) => { failures.push(err) });
+	}
+
+	return cp.then(() => {
+		if (failures.length > 0) return Promise.reject(failures.join('\n'));
+		else return Promise.resolve(testResults.length);
+	});	
 }
 
 /**
@@ -66,25 +81,39 @@ function Demitasse(dataProviderFunction, testFunction, opts) {
 function doTest(testFunction, idx, row, testOpt) {
 	let expectedResult = row.shift();
 	let testRet = testFunction.apply(null, row);
-	if (! opt['async']) testRet = Promise.resolve(testRet);
 
-	testRet.then((actualResult) => {
-		if (! _.isEqual(expectedResult, actualResult)) {
-			let view = {
-				'id':       idx,
-				'params':   () => row.map(testParamStringValue).join(", "),
-				'expected': () => expectedResult.toString(),
-				'actual':   () => actualResult.toString()
-			};
+	let l_idx = idx;
+	if (! testOpt['async']) {
+		return testEvaluate(expectedResult, testRet, l_idx, row, testOpt['template']);
+	}
 
-			let failure = mustache.render(testOpt['template'], view);
-			return testOpt['persist'] ? Promise.resolve(failure) : Promise.reject(failure);
-		} else {
-			return Promise.resolve(null);
-		}
+	return testRet.then((actualResult) => {
+		var tev = testEvaluate(expectedResult, actualResult, l_idx, row, testOpt['template']);
+		if (tev === null) return Promise.resolve(null);
+		return Promise.reject(tev);
 	});
+}
 
-	return failure;
+/**
+ * 
+ * @param {any} expectedResult 
+ * @param {any} actualResult 
+ * @param {number} idx
+ * @param {any[]} row
+ * @param {string} errTemplate 
+ * @return {null|string}
+ */
+function testEvaluate(expectedResult, actualResult, idx, row, errTemplate) {
+	if (! _.isEqual(expectedResult, actualResult)) {
+		let view = {
+			'id':       idx,
+			'params':   () => row.map(testParamStringValue).join(", "),
+			'expected': () => expectedResult.toString(),
+			'actual':   () => actualResult.toString()
+		};
+
+		return mustache.render(errTemplate, view);
+	} else return null;
 }
 
 /**
