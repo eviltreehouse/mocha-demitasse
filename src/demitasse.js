@@ -61,15 +61,24 @@ function Demitasse(dataProviderFunction, testFunction, opts) {
 
 	var cp = Promise.resolve(null);
 
-	/** @todo handle "non-persist" mode */
-	for (let p of testResults) {
-		cp = cp.then(testResults, (err) => { failures.push(err) });
-	}
+	var waiting = testResults.length;
 
-	return cp.then(() => {
-		if (failures.length > 0) return Promise.reject(failures.join('\n'));
-		else return Promise.resolve(testResults.length);
-	});	
+	let asyncFailureString = function(arr) {
+		if (arr.length === 0) return testResults.length;
+		else return failures.join('\n');
+	};
+
+	return new Promise((resolve, reject) => {
+		/** @todo handle "non-persist" mode */
+		for (let p of testResults) {
+			p.then((rv) => {
+				waiting--;
+				if (rv !== null) failures.push(rv);
+				if (waiting === 0 && !failures.length) resolve(testResults.length);
+				else if (waiting === 0) reject(new Error(asyncFailureString(failures)));
+			});
+		}
+	});
 }
 
 /**
@@ -77,6 +86,7 @@ function Demitasse(dataProviderFunction, testFunction, opts) {
  * @param {number} idx 
  * @param {any[]} row 
  * @param {Object.<string,any>} testOpt
+ * @return {null|string|Promise}
  */
 function doTest(testFunction, idx, row, testOpt) {
 	let expectedResult = row.shift();
@@ -89,8 +99,7 @@ function doTest(testFunction, idx, row, testOpt) {
 
 	return testRet.then((actualResult) => {
 		var tev = testEvaluate(expectedResult, actualResult, l_idx, row, testOpt['template']);
-		if (tev === null) return Promise.resolve(null);
-		return Promise.reject(tev);
+		return Promise.resolve(tev);
 	});
 }
 
