@@ -116,8 +116,8 @@ function testEvaluate(expectedResult, actualResult, idx, row, errTemplate) {
 		let view = {
 			'id':       idx,
 			'params':   () => row.map(testParamStringValue).join(", "),
-			'expected': () => expectedResult.toString(),
-			'actual':   () => actualResult.toString()
+			'expected': () => testParamStringValue(expectedResult),
+			'actual':   () => testParamStringValue(actualResult)
 		};
 
 		return mustache.render(errTemplate, view);
