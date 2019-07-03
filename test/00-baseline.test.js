@@ -115,7 +115,7 @@ describe("Baseline", () => {
 
 			assert(threw !== null);
 			assert(threw.message === 
-				'[Test #1] Expected: 3, Actual: 2\n[Test #2] Expected: 5, Actual: 6', threw.message);
+				'\n[Test #1] Expected: 3, Actual: 2\n[Test #2] Expected: 5, Actual: 6', threw.message);
 		});
 	});
 });

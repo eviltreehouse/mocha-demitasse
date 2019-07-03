@@ -6,10 +6,10 @@ const mustache = require('mustache');
 // HTML escaping off
 mustache.escape = (v) => v;
 
-const DEFAULT_ERR_TEMPLATE = 
+const DEFAULT_ERR_TEMPLATE =
 	'[Test #{{ id }}] Expected: {{ expected }}, Actual: {{ actual }}';
 
-const VERBOSE_ERR_TEMPLATE = 
+const VERBOSE_ERR_TEMPLATE =
 	'[Test #{{ id }}][{{ params }}] Expected: {{ expected }}, Actual: {{ actual }}';
 
 const DEFAULT_OPTS = {
@@ -54,39 +54,36 @@ function Demitasse(dataProviderFunction, testFunction, opts) {
 	var failures = [];
 	if (! opts['async']) {
 		for (let fail of testResults) if (fail) failures.push(fail);
-		if (failures.length > 0) throwErr(failures.join('\n'));
+		if (failures.length > 0) throwErr(failureString(failures));
 
 		return;
 	}
 
-	var cp = Promise.resolve(null);
-
 	var waiting = testResults.length;
 
-	let asyncFailureString = function(arr) {
-		if (arr.length === 0) return testResults.length;
-		else return failures.join('\n');
-	};
-
-	return new Promise((resolve, reject) => {
+	return new Promise(async (resolve, reject) => {
 		/** @todo handle "non-persist" mode */
 		for (let p of testResults) {
-			p.then((rv) => {
-				waiting--;
-				if (rv !== null) failures.push(rv);
-				if (waiting === 0 && !failures.length) resolve(testResults.length);
-				else if (waiting === 0) reject(new Error(asyncFailureString(failures)));
-			});
+			var rv = await p();
+			// console.log('rv = ', rv);
+			waiting--;
+			if (rv !== null) failures.push(rv);
+			if (waiting === 0 && !failures.length) resolve(testResults.length);
+			else if (waiting === 0) reject(new Error(failureString(failures)));
+			else if (failures.length > 0 && !opts['persist']) {
+				reject(new Error(failureString(failures)));
+				break;
+			}
 		}
 	});
 }
 
 /**
- * @param {function} testFunction 
- * @param {number} idx 
- * @param {any[]} row 
+ * @param {function} testFunction
+ * @param {number} idx
+ * @param {any[]} row
  * @param {Object.<string,any>} testOpt
- * @return {null|string|Promise}
+ * @return {null|string|function}
  */
 function doTest(testFunction, idx, row, testOpt) {
 	let expectedResult = row.shift();
@@ -97,19 +94,21 @@ function doTest(testFunction, idx, row, testOpt) {
 		return testEvaluate(expectedResult, testRet, l_idx, row, testOpt['template']);
 	}
 
-	return testRet.then((actualResult) => {
-		var tev = testEvaluate(expectedResult, actualResult, l_idx, row, testOpt['template']);
-		return Promise.resolve(tev);
-	});
+	return () => {
+		return testRet.then((actualResult) => {
+			var tev = testEvaluate(expectedResult, actualResult, l_idx, row, testOpt['template']);
+			return Promise.resolve(tev);
+		});
+	};
 }
 
 /**
- * 
- * @param {any} expectedResult 
- * @param {any} actualResult 
+ *
+ * @param {any} expectedResult
+ * @param {any} actualResult
  * @param {number} idx
  * @param {any[]} row
- * @param {string} errTemplate 
+ * @param {string} errTemplate
  * @return {null|string}
  */
 function testEvaluate(expectedResult, actualResult, idx, row, errTemplate) {
@@ -141,8 +140,8 @@ Demitasse.async = function(dataProviderFunction, testFunction, opts) {
 };
 
 /**
- * 
- * @param {string} v 
+ *
+ * @param {string} v
  * @return {string}
  */
 function testParamStringValue(v) {
@@ -151,12 +150,24 @@ function testParamStringValue(v) {
 	else if (typeof v === 'object') {
 		let sv = '<object>';
 		try {
-			sv = JSON.stringify(sv);
-		} catch(e) {}
+			sv = JSON.stringify(v);
+		} catch(e) {
+			// couldn't stringify 
+		}
+		return sv;
 	} else {
 		return v.toString();
 	}
 }
+
+function failureString(arr) {
+	let fs = arr.join('\n');
+
+	if (arr.length === 1) return fs;
+
+	// add a leading newline when we have multiple failures so it looks better in mocha
+	return `\n${fs}`;
+};
 
 function throwErr(msg) { throw new Error(msg); }
 function throwUsage() { throw new Error("usage: testAll(function, function)"); }
